@@ -32,10 +32,10 @@ func GetShortURL(w http.ResponseWriter, r *http.Request) {
 	// TODO: Read the requested shortened URL from the vars
 	// TODO: Query the db
 	// TODO: Redirect to the original URL
-	vars := mux.Vars(r)
+	shortUrl := mux.Vars(r)["url"]
 	// vars contains the shortened url to be lookedup and redirected
-	fmt.Println(vars)
-
+	originalUrl := db.QueryShortURL(Collection, shortUrl)
+	http.Redirect(w, r, originalUrl, http.StatusSeeOther)
 }
 
 func PostURL(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +45,9 @@ func PostURL(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(url)
 	// TODO: shorten the URL
 	// 1. Check if the long URL already exists in db. If so, return its short counterpart
-	db.InsertURL(Collection, url)
 	// 2. If not, run the shortening algorithm
 	// 3. Store in db
+	result := db.InsertURL(Collection, url)
 	// 4. Return the shortened URL
+	fmt.Fprintf(w, "Shortened URL: %v\n", result.ShortUrl)
 }

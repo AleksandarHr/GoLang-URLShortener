@@ -10,6 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -40,28 +41,6 @@ func InitDB() *mongo.Client {
 		log.Fatal(err)
 	}
 	fmt.Println("Successfully connected to MongoDB!")
-
-	// Initialize mongo db client
-	// client, err := mongo.NewClient(options.Client().ApplyURI(mongoURI))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	// defer cancel()
-
-	// // Calling Connect does not block for server discovery.
-	// err = client.Connect(ctx)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// // Check if a MongoDB server has been found and connected to
-	// err = client.Ping(ctx, nil)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
 	return client
 }
 
@@ -71,11 +50,16 @@ func GetDbCollection(client *mongo.Client) *mongo.Collection {
 	return client.Database(dbName).Collection(collectionName)
 }
 
-func CloseDB() {
+func CloseDB(client *mongo.Client) {
+	err := client.Disconnect(context.TODO())
 
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Successfully disconnected from MongoDB!")
 }
 
-func InsertURL(collection *mongo.Collection, url string) DbEntry {
+func InsertURL(collection *mongo.Collection, url string) *DbEntry {
 	shortUrl := algorithms.ShortenURL(url)
 	dbEntry := DbEntry{url, shortUrl}
 	fmt.Println(dbEntry)
@@ -83,19 +67,48 @@ func InsertURL(collection *mongo.Collection, url string) DbEntry {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	if exists, existingShortUrl := previouslyShortened(collection, url); exists {
+		fmt.Println("Record for provided long URL already exists.")
+		return existingShortUrl
+	}
+
 	insertResult, err := collection.InsertOne(ctx, dbEntry)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println("Inserted a single document: ", insertResult.InsertedID)
-	return dbEntry
+	return &dbEntry
 }
 
-func QueryShortURL() {
+func QueryShortURL(collection *mongo.Collection, shortUrlQuery string) string {
+	var queryResult DbEntry
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := collection.FindOne(ctx, bson.D{{"shorturl", shortUrlQuery}}).Decode(&queryResult)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return queryResult.OriginalUrl
 }
 
-func QueryLongURL() {
+func previouslyShortened(collection *mongo.Collection, originalUrl string) (bool, *DbEntry) {
+	var queryResult DbEntry
 
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	fmt.Println("Checking for existance of " + originalUrl)
+	err := collection.FindOne(ctx, bson.D{{"originalurl", originalUrl}}).Decode(&queryResult)
+	if err != nil {
+		// The filter did not match any documents in the collection
+		if err == mongo.ErrNoDocuments {
+			fmt.Println("No record exists for " + originalUrl)
+			return false, nil
+		}
+		log.Fatal(err)
+	}
+	return true, &queryResult
 }
