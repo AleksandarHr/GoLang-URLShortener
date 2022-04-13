@@ -35,5 +35,6 @@ func ShortenURL(originalUrl string) string {
 	}
 
 	// Return the first 5
-	return string(base58Encoded)[:5]
+	shortUrl := string(base58Encoded)[:5]
+	return shortUrl
 }
