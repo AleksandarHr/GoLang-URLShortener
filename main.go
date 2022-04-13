@@ -4,6 +4,7 @@ import (
 	// "os"
 	"fmt"
 	"log"
+	"net/http"
 	server "url_shortener/server"
 
 	"github.com/joho/godotenv"
@@ -15,8 +16,12 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	// Start server
-	server.InitServer()
 
-	fmt.Println("Closing Chaos URL Shortener.")
+	// Start server
+	s := server.NewUrlShortenerServer()
+	if err := s.StartServer(); err != http.ErrServerClosed {
+		// unexpected error, close db and log error as fatal
+		s.ShortenerDb.CloseDB()
+		log.Fatalf("ListenAndServe(): %v", err)
+	}
 }
