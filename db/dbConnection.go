@@ -117,8 +117,8 @@ func (db *UrlShortenerDb) InsertURL(url string) *DbEntry {
 // returns a pointer to a DbEntry with the original long and the shortened URL. Otherwise, it
 // logs an error.
 func (db *UrlShortenerDb) QueryShortURL(shortUrlQuery string) *DbEntry {
-	var queryResult DbEntry
 
+	var queryResult DbEntry
 	// Create a 5-second timeout context
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

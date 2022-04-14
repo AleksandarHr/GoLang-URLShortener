@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	urlParser "net/url"
 	"os"
@@ -48,7 +47,9 @@ func (s *UrlShortenerServer) GetShortURL(w http.ResponseWriter, r *http.Request)
 
 	// Shortened URLs are always of length 5
 	if len(shortUrl) != 5 {
-		log.Println("Supports only short URLs of length 5")
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Supports only short URLs of length 5"))
+		return
 	}
 	// TODO: check if provided short URL is base58
 
@@ -56,7 +57,7 @@ func (s *UrlShortenerServer) GetShortURL(w http.ResponseWriter, r *http.Request)
 	queryResult := s.ShortenerDb.QueryShortURL(shortUrl)
 	if queryResult == nil {
 		// If not found, print message
-		log.Println("No corresponding URL found for the short: " + shortUrl)
+		w.Write([]byte("No corresponding URL found for the short: " + shortUrl))
 		return
 	}
 	// If found, redirect
@@ -73,15 +74,16 @@ func (s *UrlShortenerServer) PostURL(w http.ResponseWriter, r *http.Request) {
 	// Verify 'url' contains a valid url
 	_, err := urlParser.ParseRequestURI(url)
 	if err != nil {
-		log.Println(err)
+		w.Write([]byte(err.Error()))
 		return
 	}
 
 	// Perform Insert operation with the provided long URL
 	insertionResult := s.ShortenerDb.InsertURL(url)
 	if insertionResult == nil {
-		log.Println("Unsuccessful insert operation for long url: " + url)
+		w.Write([]byte("Unsuccessful insert operation for long url: " + url))
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Shortened URL: %v\n", insertionResult.ShortUrl)
 }
